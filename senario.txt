@@ -439,5 +439,25 @@ from [office-08의 system.evtx 파일 경로]
 wehre timegenerated
 between timestamp('2017/09/07 17:13:16', 'yyyy/MM/dd hh:mm:ss')
 and timestamp('2017/09/08 10:13:07', 'yyyy/MM/dd hh:mm:ss')
+
+**결과
+psexecsvc가 실행된걸 확인
+> 사용자 인증이 필요한 서비스
+> 권한이 무엇인가?
+
+7. 퍼셀 PC 분석 7 
+이벤트 로그 분석
+SECURITY.EVTX
+
+**분석
+
+Step 1. security.evtx 분석
+PSEXECSVC가 running/stopped 된 시점을 중심으로 조사
+
+Select timegenerated, eventid, mesage
+from [office-08의 security.evtx. 파일 경로]
+where timegenerated between timestamp('2017/09/07 17:13:16', 'yyyy/MM/dd hh:mm:ss') and timestamp('2017/09/08 10:13:07', 'yyyy/MM/dd hh:mm:ss')
+
 // $MFT 무조건 다 알 수 있는 곳 $LogFile, $Extend하위에 $USNJrnl($jernal) 중요. $jernal file.약 2일정도의 모든 로그를 기억함
 $JERNAL은 $MAX, $J파일로 구성되어있는데, %J에 모든 정보가 들어있음. $MAX는 $J파일에 대한 정보를 저장한 파일
+
