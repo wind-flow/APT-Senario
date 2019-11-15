@@ -414,3 +414,29 @@ sTEP 1. rdp 관련 로그 조사
 
 **결론
 9월 7일과 8일에 걸쳐 192.168.12.10(파일서버)에서 Office-08에 RDP 통신으로 연결한 흔적 발견
+
+파일서버 > 오피스08 > VPN > 웹페이지 > 데이터 유출
+
+5. 퍼셀 pc 분석 5
+**분석
+이벤트 로그에서 RDP 통신 흔적 조사
+
+Select timegenerated, eventid, message
+from [office-08의 system.evtx 파일 경로]
+where message like '&remote desktop%' order by timegenerated
+
+**결과
+9월 7,8일에 rdp 통신 사용 기록이 발견됨
+
+6. 퍼셀 PC 분석 6
+**분석
+RDP 서비스가 사용된 시간동안 하드웨어나 드라이버의 오작동 또는 새로운 서비스의 시작 및 중단에 대한 기록을 확인
+
+System.evtx 파일 재분석
+
+Select timegenerated, eventid, message
+from [office-08의 system.evtx 파일 경로]
+wehre timegenerated
+between timestamp('2017/09/07 17:13:16', 'yyyy/MM/dd hh:mm:ss')
+and timestamp('2017/09/08 10:13:07', 'yyyy/MM/dd hh:mm:ss')
+// $NFT 무조건 다 알 수 있는 곳
